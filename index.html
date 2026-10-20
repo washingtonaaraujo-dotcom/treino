@@ -69,7 +69,20 @@ button:focus-visible,input:focus-visible,select:focus-visible{outline:2px solid 
 .load input{width:72px;height:44px;border-radius:8px;border:1px solid var(--line);background:var(--bg);color:var(--fg);font:700 18px var(--display);text-align:center;font-variant-numeric:tabular-nums}
 .load span{font-size:13px;color:var(--muted)}
 .prev{font-size:12px;color:var(--muted)}
-.vid{margin-left:auto;font:600 14px var(--body);color:var(--tc);text-decoration:none;border:1px solid var(--line);border-radius:8px;padding:8px 12px;background:var(--bg)}
+.vid{margin-left:auto;font:600 14px var(--body);color:var(--tc);text-decoration:none;border:1px solid var(--line);border-radius:8px;padding:8px 12px;background:var(--bg);cursor:pointer}
+.how{position:fixed;inset:0;z-index:30;background:rgba(10,14,20,.55);display:flex;align-items:flex-end;justify-content:center;padding-left:max(0px,env(safe-area-inset-left,0px));padding-right:max(0px,env(safe-area-inset-right,0px))}
+.how-card{background:var(--card);color:var(--fg);width:100%;max-width:560px;max-height:100%;overflow:auto;border-radius:16px 16px 0 0;padding:16px 16px calc(16px + env(safe-area-inset-bottom,0px));display:flex;flex-direction:column;gap:12px}
+@media (min-width:600px){.how{align-items:center}.how-card{border-radius:16px}}
+.how-top{display:flex;justify-content:space-between;align-items:flex-start;gap:12px}
+.how-top h3{margin:0;font:800 26px/1.05 var(--display);text-transform:uppercase}
+.how-top .lab{font-size:12px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
+.how-close{font:600 14px var(--body);border:1px solid var(--line);background:var(--bg);color:var(--fg);border-radius:8px;padding:8px 12px;cursor:pointer}
+.stage{position:relative;background:var(--bg);border-radius:12px;overflow:hidden}
+.stage canvas{display:block;width:100%;height:auto;aspect-ratio:320/220;max-width:100%}
+.stage .ph{position:absolute;left:12px;top:10px;font:800 22px var(--display);text-transform:uppercase;color:var(--tc);letter-spacing:.03em}
+.how ol{margin:0;padding-left:20px;display:flex;flex-direction:column;gap:6px;font-size:15px}
+.how .yt{font-size:14px;color:var(--muted)}
+.how .yt a{color:var(--tc);font-weight:600}
 .vid:focus-visible{outline:2px solid var(--tc);outline-offset:2px}
 .finish{width:100%;padding:14px;border-radius:12px;border:0;background:var(--tc);color:var(--bg);font:800 20px var(--display);text-transform:uppercase;letter-spacing:.04em;cursor:pointer}
 .note{font-size:13px;color:var(--muted);text-align:center}
@@ -240,7 +253,7 @@ function renderList(){
         <div><div class="ex-name">${e.n}${bi}</div>
         <div class="ex-meta">${e.g} · ${e.tempo?"3 × 30 segundos":e.bw?"peso do corpo":f.sets.join(" / ")+" repetições"}</div></div>
         <div class="row">${reps.map((r,j)=>`<button class="set${st[j]?" on":""}" data-i="${i}" data-j="${j}" aria-pressed="${!!st[j]}" aria-label="Série ${j+1}">${r}</button>`).join("")}${load}</div>
-        <div class="row">${lw!=null&&!e.bw?`<span class="prev">Última vez: ${lw} kg</span>`:""}<a class="vid" href="https://www.youtube.com/results?search_query=${encodeURIComponent((e.q||e.n)+" execução correta")}" target="_blank" rel="noopener">▶ Ver como fazer</a></div>
+        <div class="row">${lw!=null&&!e.bw?`<span class="prev">Última vez: ${lw} kg</span>`:""}<button class="vid" data-v="${i}">▶ Ver como fazer</button></div>
       </div></article>`;
   }).join("");
 }
@@ -325,6 +338,192 @@ function show(v){$("view-treino").hidden=v!=="t";$("view-hist").hidden=v!=="h";$
 $("nav-treino").onclick=()=>show("t");$("nav-hist").onclick=()=>show("h");
 renderAll();
 if("serviceWorker" in navigator){window.addEventListener("load",()=>navigator.serviceWorker.register("sw.js").catch(()=>{}))}
+</script>
+<script>
+/* Animações dos exercícios — boneco desenhado em canvas, funciona offline */
+const ANIM=(()=>{
+const LN={t:58,ua:31,fa:29,th:40,sh:40,ft:12,nk:18};
+const RD=Math.PI/180;
+const P=(p,a,l)=>[p[0]+l*Math.cos(a*RD),p[1]+l*Math.sin(a*RD)];
+const ang=(a,b)=>Math.atan2(b[1]-a[1],b[0]-a[0])/RD;
+function ik(s,t,l1,l2,b){let d=Math.hypot(t[0]-s[0],t[1]-s[1]);d=Math.min(Math.max(d,Math.abs(l1-l2)+.5),l1+l2-.3);
+  const th=ang(s,t),al=Math.acos((l1*l1+d*d-l2*l2)/(2*l1*d))/RD;const e=P(s,th+b*al,l1);return[e,P(e,ang(e,t),l2)]}
+function lerp(a,b,k){if(typeof a==="number")return a+(b-a)*k;if(Array.isArray(a))return a.map((v,i)=>lerp(v,b[i],k));const o={};for(const x in a)o[x]=lerp(a[x],b[x],k);return o}
+
+const BENCH=[["r",100,161,120,9],["l",112,170,112,200,5],["l",208,170,208,200,5]];
+const MAT=[["r",40,200,240,3]];
+const D={
+"Flexão de braços":{v:"s",lb:["Desce","Sobe"],st:MAT,
+  A:{hip:[135,160],t:-20,arm:[191,200,1],legA:[160,160],ft:72},
+  B:{hip:[139,177],t:-8,arm:[191,200,1],legA:[172,172],ft:72},
+  tips:["Mãos um pouco mais abertas que os ombros.","Corpo reto da cabeça aos pés, abdômen firme.","Desça até o peito quase tocar o chão e empurre de volta."]},
+"Crucifixo":{v:"f",tl:6,noLegs:1,lb:["Fecha","Abre"],st:BENCH,db:"o",
+  A:{hip:[160,160],arm:[232,168,1]},B:{hip:[160,160],arm:[168,98,1]},
+  tips:["Deitado no banco, halteres acima do peito com as palmas viradas uma para a outra.","Abra os braços em arco, cotovelos levemente dobrados.","Desça até sentir o peito alongar e feche como num abraço."]},
+"Supino com halteres":{v:"f",tl:6,noLegs:1,lb:["Empurra","Desce"],st:BENCH,db:"h",
+  A:{hip:[160,160],arm:[204,140,1]},B:{hip:[160,160],arm:[184,97,1]},
+  tips:["Pés firmes no chão e costas apoiadas no banco.","Desça os halteres até a linha do peito, cotovelos a uns 45° do corpo.","Empurre para cima sem bater um halter no outro."]},
+"Tríceps testa":{v:"s",fr:-1,lb:["Desce","Estende"],st:[["r",95,160,140,8],["l",105,168,105,200,5],["l",225,168,225,200,5]],db:"o",
+  A:{hip:[112,153],t:0,armA:[-84,-84],leg:[82,198,1]},B:{hip:[112,153],t:0,armA:[-84,18],leg:[82,198,1]},
+  tips:["Braços apontando para o teto, cotovelos fechados.","Dobre só os cotovelos, levando o peso em direção à testa.","Estenda de volta sem mexer os ombros."]},
+"Tríceps com corda":{v:"s",lb:["Estende","Volta"],st:[["l",252,6,252,200,6],["c",246,16,6]],cable:[246,16],db:"o",
+  A:{hip:[150,118],t:-82,armA:[96,-30],legA:[90,90]},B:{hip:[150,118],t:-82,armA:[96,86],legA:[90,90]},
+  tips:["Cotovelos colados ao corpo o tempo todo.","Empurre a corda para baixo até esticar os braços, abrindo as pontas no final.","Volte devagar até o antebraço ficar na horizontal."]},
+"Remada":{v:"s",lb:["Puxa","Volta"],st:[["r",90,165,64,8],["l",122,173,122,200,6],["r",214,130,7,42],["l",217,172,217,200,5],["l",292,138,292,200,6],["c",288,152,5]],cable:[288,152],db:"o",
+  A:{hip:[120,158],t:-70,armR:[0.78,58,1],leg:[208,156,-1],ft:-88},B:{hip:[120,158],t:-98,armR:[0.42,16,1],leg:[208,156,-1],ft:-88},
+  tips:["Coluna reta e peito aberto.","Puxe em direção ao abdômen, levando os cotovelos para trás.","Junte as escápulas no final e volte controlando."]},
+"Pulley frente com estribo":{v:"s",lb:["Puxa","Volta"],st:[["r",108,160,62,8],["l",139,168,139,200,6],["cf",184,137,7],["l",150,0,150,4,6]],cable:[150,4],db:"o",
+  A:{hip:[140,154],t:-100,arm:[146,30,1],legA:[0,90]},B:{hip:[140,154],t:-104,arm:[152,98,1],legA:[0,90]},
+  tips:["Sente com as coxas presas no apoio.","Puxe o estribo até a parte de cima do peito, tronco só um pouco inclinado para trás.","Suba devagar até esticar os braços."]},
+"Rosca na polia baixa":{v:"s",lb:["Sobe","Desce"],st:[["r",226,192,26,8],["c",238,188,5]],cable:[238,188],db:"o",
+  A:{hip:[150,118],t:-90,armA:[93,72],legA:[90,90]},B:{hip:[150,118],t:-90,armA:[93,-68],legA:[90,90]},
+  tips:["Cotovelos parados ao lado do corpo.","Suba o puxador dobrando só os cotovelos.","Desça devagar, sem balançar o tronco."]},
+"Desenvolvimento":{v:"f",seated:1,lb:["Empurra","Desce"],st:[["r",141,64,38,82],["r",124,144,72,8],["l",160,152,160,200,6]],db:"h",
+  A:{hip:[160,140],arm:[205,58,1]},B:{hip:[160,140],arm:[184,22,1]},
+  tips:["Halteres na altura das orelhas, cotovelos abaixo das mãos.","Empurre para cima até quase esticar os braços.","Não arqueie a lombar: abdômen firme."]},
+"Elevação lateral":{v:"f",lb:["Sobe","Desce"],st:[],db:"o",
+  A:{hip:[160,118],arm:[184,116,-1]},B:{hip:[160,118],arm:[234,66,-1]},
+  tips:["Cotovelos levemente dobrados.","Suba os braços pela lateral até a altura dos ombros.","Desça devagar, sem dar impulso com o corpo."]},
+"Abdominal no solo":{v:"s",fr:-1,lb:["Sobe","Desce"],st:MAT,
+  A:{hip:[118,190],t:0,armR:[0.66,12,1],leg:[88,198,1]},B:{hip:[118,190],t:-32,armR:[0.66,12,1],leg:[88,198,1]},
+  tips:["Joelhos dobrados e pés no chão.","Tire só os ombros do chão, soltando o ar na subida.","Não puxe o pescoço com as mãos."]},
+"Agachamento":{v:"s",lb:["Desce","Sobe"],st:[],bar:1,
+  A:{hip:[150,118],t:-86,armR:[0.92,-13,1],leg:[154,198,-1],ft:0},B:{hip:[112,160],t:-46,armR:[0.92,-13,1],leg:[154,198,-1],ft:0},
+  tips:["Pés na largura dos ombros, pontas levemente para fora.","Desça levando o quadril para trás, como se fosse sentar.","Joelhos na direção dos pés e calcanhares no chão."]},
+"Leg press 180°":{v:"s",lb:["Empurra","Volta"],st:[["l",112,154,72,90,9],["r",86,154,52,8],["l",112,162,112,200,6],["l",160,186,240,186,4]],plate:1,
+  A:{hip:[110,150],t:-122,arm:[124,160,1],leg:[146,126,-1],ft:-80},B:{hip:[110,150],t:-122,arm:[124,160,1],leg:[184,138,-1],ft:-80},
+  tips:["Costas e quadril bem apoiados no encosto.","Desça até os joelhos formarem cerca de 90°.","Empurre sem travar totalmente os joelhos no final."]},
+"Cadeira extensora":{v:"s",lb:["Estende","Desce"],st:[["l",108,148,98,92,8],["r",100,150,62,8],["l",130,158,130,200,6]],pad:"front",
+  A:{hip:[130,144],t:-96,arm:[142,150,1],legA:[0,90]},B:{hip:[130,144],t:-96,arm:[142,150,1],legA:[0,-4]},
+  tips:["Ajuste o encosto para o joelho ficar alinhado com o eixo da máquina.","Estenda as pernas até ficarem retas.","Desça devagar, sem deixar o peso bater."]},
+"Cadeira flexora":{v:"s",lb:["Flexiona","Volta"],st:[["l",108,148,98,92,8],["r",100,150,62,8],["l",130,158,130,200,6],["cf",160,134,7]],pad:"back",
+  A:{hip:[130,144],t:-96,arm:[142,150,1],legA:[0,-4]},B:{hip:[130,144],t:-96,arm:[142,150,1],legA:[0,108]},
+  tips:["Rolo apoiado logo acima do calcanhar.","Puxe o rolo para baixo, dobrando os joelhos ao máximo.","Volte devagar, sem tirar o quadril do banco."]},
+"Adutor":{v:"f",lb:["Fecha","Abre"],st:[["r",140,72,40,70],["r",120,142,80,8],["l",160,150,160,200,6]],pad:"kneeIn",
+  A:{hip:[160,140],arm:[198,146,1],legK:[54,6,58,54]},B:{hip:[160,140],arm:[198,146,1],legK:[16,6,18,54]},
+  tips:["Costas apoiadas e pernas abertas no apoio.","Feche as pernas apertando a parte interna das coxas.","Abra devagar, controlando o peso."]},
+"Abdutor":{v:"f",lb:["Abre","Fecha"],st:[["r",140,72,40,70],["r",120,142,80,8],["l",160,150,160,200,6]],pad:"kneeOut",
+  A:{hip:[160,140],arm:[198,146,1],legK:[16,6,18,54]},B:{hip:[160,140],arm:[198,146,1],legK:[54,6,58,54]},
+  tips:["Costas apoiadas e pernas fechadas no apoio.","Abra as pernas empurrando com a parte externa das coxas.","Feche devagar, sem soltar o peso."]},
+"Panturrilha sentado":{v:"s",lb:["Sobe","Desce"],st:[["r",96,150,48,8],["l",120,158,120,200,6],["r",156,186,32,14]],pad:"knee",
+  A:{hip:[120,144],t:-90,arm:[156,128,1],legA:[0,90],ft:-15},B:{hip:[120,144],t:-90,arm:[156,121,1],legA:[-11,92],ft:32},
+  tips:["Ponta dos pés no apoio e o rolo sobre as coxas, perto dos joelhos.","Suba o calcanhar o máximo que der.","Desça até alongar bem a panturrilha."]},
+"Abdominal infra":{v:"s",lb:["Sobe","Desce"],st:MAT,
+  A:{hip:[150,190],t:180,armA:[2,2],legA:[-6,-6]},B:{hip:[150,190],t:180,armA:[2,2],legA:[-86,-86]},
+  tips:["Deitado, mãos no chão ao lado do corpo.","Suba as pernas juntas até ficarem na vertical.","Desça devagar, sem deixar a lombar sair do chão."]},
+"Abdominal oblíquo":{v:"s",fr:-1,lb:["Sobe girando","Desce"],st:MAT,
+  A:{hip:[118,190],t:0,armR:[1.22,-3,-1],leg:[88,198,1],leg2:[88,198,1]},B:{hip:[118,190],t:-40,armR:[1.22,-3,-1],leg:[150,150,-1],leg2:[88,198,1]},
+  tips:["Deitado, com as mãos atrás da cabeça.","Suba o tronco girando, levando o cotovelo em direção ao joelho oposto.","Alterne os lados a cada repetição."]},
+"Prancha":{v:"s",lb:["Segure firme","Segure firme"],st:MAT,hold:1,
+  A:{hip:[140,177],t:-8,armA:[90,0],legA:[172,172],ft:80},B:{hip:[140,175],t:-9,armA:[90,0],legA:[171,171],ft:80},
+  tips:["Antebraços no chão, cotovelos embaixo dos ombros.","Corpo reto: o quadril não cai nem sobe demais.","Abdômen e glúteos contraídos, respiração normal."]},
+"Abdominal dupla":{v:"s",lb:["Fecha","Abre"],st:MAT,
+  A:{hip:[150,190],t:180,armA:[180,180],leg:[232,190,-1]},B:{hip:[150,190],t:226,armA:[348,348],leg:[196,150,-1]},
+  tips:["Deitado, braços estendidos acima da cabeça.","Suba o tronco e traga os joelhos ao mesmo tempo, como um canivete.","Volte devagar à posição inicial."]}
+};
+D["Leg press"]=D["Leg press 180°"];
+
+function sideSk(p,fr){
+  const hip=p.hip,front=p.t+90*fr,sh=P(hip,p.t,LN.t),hd=P(hip,p.t,LN.t+LN.nk);
+  const rel=r=>P(P(hip,p.t,r[0]*LN.t),front,r[1]);
+  const armOf=(a,t,r)=>{if(a){const e=P(sh,a[0],LN.ua);return[e,P(e,a[1],LN.fa)]}if(t)return ik(sh,t,LN.ua,LN.fa,t[2]);return ik(sh,rel(r),LN.ua,LN.fa,r[2])};
+  const legOf=(a,t,ft)=>{let k,an;if(a){k=P(hip,a[0],LN.th);an=P(k,a[1],LN.sh)}else[k,an]=ik(hip,t,LN.th,LN.sh,t[2]);
+    const f=ft!=null?ft:ang(k,an)-90*fr;return[k,an,P(an,f,LN.ft)]};
+  const a1=armOf(p.armA,p.arm,p.armR);
+  const l1=legOf(p.legA,p.leg,p.ft),l2=p.leg2?legOf(null,p.leg2,p.ft):l1;
+  return{hip,sh,hd,a1,a2:a1,l1,l2};
+}
+function frontSk(p,o){
+  const c=p.hip,shY=c[1]-(o.tl||LN.t),hd=[c[0],shY-LN.nk],sides=[];
+  for(const s of[1,-1]){
+    const S=[c[0]+17*s,shY],H=[c[0]+9*s,c[1]];
+    const[e,h]=ik(S,[c[0]+(p.arm[0]-c[0])*s,p.arm[1]],LN.ua,LN.fa,p.arm[2]*s);
+    let k=null,a=null;
+    if(!o.noLegs){if(p.legK){k=[c[0]+p.legK[0]*s,c[1]+p.legK[1]];a=[c[0]+p.legK[2]*s,c[1]+p.legK[3]]}
+      else if(o.seated){k=[c[0]+14*s,c[1]+8];a=[c[0]+16*s,197]}else{k=[c[0]+10*s,c[1]+40];a=[c[0]+11*s,197]}}
+    sides.push({S,H,e,h,k,a,s});
+  }
+  return{c,shY,hd,sides};
+}
+
+function colors(){const cs=getComputedStyle(document.documentElement);const g=n=>cs.getPropertyValue(n).trim();
+  return{fg:g("--fg")||"#1b2129",mu:g("--muted")||"#5f6b78",ln:g("--line")||"#d5dae0",bg:g("--card")||"#fff",tc:g("--tc")||"#2547b8"}}
+
+function seg(ctx,pts,w,c){ctx.strokeStyle=c;ctx.lineWidth=w;ctx.lineCap="round";ctx.lineJoin="round";ctx.beginPath();ctx.moveTo(pts[0][0],pts[0][1]);for(let i=1;i<pts.length;i++)ctx.lineTo(pts[i][0],pts[i][1]);ctx.stroke()}
+function dot(ctx,p,r,c){ctx.fillStyle=c;ctx.beginPath();ctx.arc(p[0],p[1],r,0,7);ctx.fill()}
+function dumb(ctx,p,style,C,alpha){
+  ctx.globalAlpha=alpha;
+  if(style==="o"){dot(ctx,p,6,C.tc);dot(ctx,p,2.5,C.bg)}
+  else{const v=style==="v";const dx=v?0:11,dy=v?11:0;seg(ctx,[[p[0]-dx,p[1]-dy],[p[0]+dx,p[1]+dy]],3,C.tc);
+    for(const s of[-1,1]){ctx.fillStyle=C.tc;const cx=p[0]+dx*s,cy=p[1]+dy*s;ctx.fillRect(cx-(v?6:3),cy-(v?3:6),v?12:6,v?6:12)}}
+  ctx.globalAlpha=1;
+}
+function statics(ctx,st,C){
+  for(const s of st){ctx.globalAlpha=.55;
+    if(s[0]==="r"){ctx.fillStyle=C.mu;ctx.fillRect(s[1],s[2],s[3],s[4])}
+    else if(s[0]==="l")seg(ctx,[[s[1],s[2]],[s[3],s[4]]],s[5]||4,C.mu);
+    else if(s[0]==="c"){ctx.strokeStyle=C.mu;ctx.lineWidth=3;ctx.beginPath();ctx.arc(s[1],s[2],s[3],0,7);ctx.stroke()}
+    else if(s[0]==="cf")dot(ctx,[s[1],s[2]],s[3],C.mu);
+    ctx.globalAlpha=1}
+}
+
+function draw(ctx,ex,k){
+  const C=colors();ctx.clearRect(0,0,320,220);
+  ctx.globalAlpha=.35;seg(ctx,[[10,202],[310,202]],2,C.mu);ctx.globalAlpha=1;
+  const p=lerp(ex.A,ex.B,k);
+  if(ex.v==="s"){
+    const s=sideSk(p,ex.fr||1);
+    statics(ctx,ex.st,C);
+    if(ex.cable){ctx.globalAlpha=.7;seg(ctx,[ex.cable,s.a1[1]],1.5,C.mu);ctx.globalAlpha=1}
+    // lado de trás
+    ctx.save();ctx.translate(-4,-3);ctx.globalAlpha=.4;
+    seg(ctx,[s.hip,s.l2[0],s.l2[1],s.l2[2]],8,C.fg);seg(ctx,[s.sh,s.a2[0],s.a2[1]],7,C.fg);
+    ctx.restore();ctx.globalAlpha=1;
+    seg(ctx,[s.hip,s.sh],12,C.fg);dot(ctx,s.hd,10,C.fg);
+    seg(ctx,[s.hip,s.l1[0],s.l1[1],s.l1[2]],9,C.fg);
+    if(ex.pad){const kn=s.l1[0],an=s.l1[1],sa=ang(kn,an);
+      const q=ex.pad==="knee"?[kn[0]-4,kn[1]-11]:P(an,sa+(ex.pad==="front"?-90:90)*(ex.fr||1),9);dot(ctx,q,7,C.tc)}
+    if(ex.plate){const t=s.l1[2],an=s.l1[1];const x=Math.max(t[0],an[0])+5;ctx.globalAlpha=.85;seg(ctx,[[x,an[1]-26],[x,an[1]+16]],7,C.tc);seg(ctx,[[x,an[1]+16],[x+20,186]],3,C.mu);ctx.globalAlpha=1}
+    seg(ctx,[s.sh,s.a1[0],s.a1[1]],8,C.fg);
+    if(ex.db)dumb(ctx,s.a1[1],ex.db,C,1);
+    if(ex.bar){ctx.globalAlpha=.9;ctx.strokeStyle=C.tc;ctx.lineWidth=4;ctx.beginPath();ctx.arc(s.a1[1][0],s.a1[1][1],11,0,7);ctx.stroke();dot(ctx,s.a1[1],4,C.tc);ctx.globalAlpha=1}
+  }else{
+    statics(ctx,ex.st,C);
+    const f=frontSk(p,ex);
+    for(const d of f.sides)if(d.k){seg(ctx,[d.H,d.k,d.a],9,C.fg);seg(ctx,[d.a,[d.a[0]+7*d.s,d.a[1]+1]],7,C.fg)}
+    seg(ctx,[[f.c[0],f.c[1]],[f.c[0],f.shY]],14,C.fg);
+    seg(ctx,[f.sides[0].S,f.sides[1].S],10,C.fg);
+    if(!ex.noLegs)seg(ctx,[f.sides[0].H,f.sides[1].H],10,C.fg);
+    dot(ctx,f.hd,10,C.fg);
+    for(const d of f.sides){seg(ctx,[d.S,d.e,d.h],8,C.fg);if(ex.db)dumb(ctx,d.h,ex.db,C,1);
+      if(ex.pad&&d.k)dot(ctx,[d.k[0]+(ex.pad==="kneeOut"?11:-11)*d.s,d.k[1]+4],7,C.tc)}
+  }
+}
+const ease=x=>x<.5?2*x*x:1-Math.pow(-2*x+2,2)/2;
+function phase(ts){const T=(ts/1000)%3.6;if(T<.6)return[0,1];if(T<1.7)return[ease((T-.6)/1.1),0];if(T<2.2)return[1,0];return[1-ease((T-2.2)/1.4),1]}
+return{D,draw,phase};
+})();
+
+(()=>{
+const box=document.createElement("div");box.className="how";box.hidden=true;
+box.innerHTML='<div class="how-card" role="dialog" aria-modal="true" aria-labelledby="how-t"><div class="how-top"><div><div class="lab" id="how-g"></div><h3 id="how-t"></h3></div><button class="how-close" id="how-x">Fechar</button></div><div class="stage"><canvas id="how-c" width="640" height="440"></canvas><div class="ph" id="how-p"></div></div><ol id="how-tips"></ol><p class="yt">Quer ver uma pessoa fazendo? <a id="how-yt" target="_blank" rel="noopener">Vídeos no YouTube</a> (precisa de internet).</p></div>';
+document.body.appendChild(box);
+const cv=box.querySelector("#how-c"),ctx=cv.getContext("2d");
+let raf=0,ex=null,t0=0,lastFocus=null;
+function size(){const dpr=Math.min(3,window.devicePixelRatio||1);const w=Math.round(cv.clientWidth||320);cv.width=w*dpr;cv.height=Math.round(w*220/320)*dpr;ctx.setTransform(cv.width/320,0,0,cv.height/220,0,0)}
+function loop(ts){if(!t0)t0=ts;const[k,ph]=ANIM.phase(ts-t0);ANIM.draw(ctx,ex,k);box.querySelector("#how-p").textContent=ex.lb[ph];raf=requestAnimationFrame(loop)}
+function open(e){ex=ANIM.D[e.n];if(!ex)return;lastFocus=document.activeElement;
+  box.querySelector("#how-t").textContent=e.n;box.querySelector("#how-g").textContent=e.g;
+  box.querySelector("#how-tips").innerHTML=ex.tips.map(x=>"<li>"+x+"</li>").join("");
+  box.querySelector("#how-yt").href="https://www.youtube.com/results?search_query="+encodeURIComponent((e.q||e.n)+" execução correta");
+  box.hidden=false;size();t0=0;cancelAnimationFrame(raf);raf=requestAnimationFrame(loop);box.querySelector("#how-x").focus()}
+function close(){box.hidden=true;cancelAnimationFrame(raf);if(lastFocus)try{lastFocus.focus()}catch(_){}}
+box.querySelector("#how-x").onclick=close;
+box.addEventListener("click",ev=>{if(ev.target===box)close()});
+document.addEventListener("keydown",ev=>{if(ev.key==="Escape"&&!box.hidden)close()});
+window.addEventListener("resize",()=>{if(!box.hidden)size()});
+document.getElementById("list").addEventListener("click",ev=>{const b=ev.target.closest(".vid");if(!b)return;ev.stopPropagation();open(TREINOS[sel-1].ex[+b.dataset.v])});
+})();
 </script>
 </body>
 </html>
