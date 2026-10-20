@@ -77,8 +77,8 @@ button:focus-visible,input:focus-visible,select:focus-visible{outline:2px solid 
 .how-top h3{margin:0;font:800 26px/1.05 var(--display);text-transform:uppercase}
 .how-top .lab{font-size:12px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
 .how-close{font:600 14px var(--body);border:1px solid var(--line);background:var(--bg);color:var(--fg);border-radius:8px;padding:8px 12px;cursor:pointer}
-.stage{position:relative;background:var(--bg);border-radius:12px;overflow:hidden}
-.stage canvas{display:block;width:100%;height:auto;aspect-ratio:320/220;max-width:100%}
+.stage{position:relative;background:var(--bg);border-radius:12px;overflow:hidden;flex:none}
+.stage canvas{display:block;width:min(100%,calc(46vh * 320 / 220));height:auto;aspect-ratio:320/220;max-width:100%;margin:0 auto}
 .stage .ph{position:absolute;left:12px;top:10px;font:800 22px var(--display);text-transform:uppercase;color:var(--tc);letter-spacing:.03em}
 .how ol{margin:0;padding-left:20px;display:flex;flex-direction:column;gap:6px;font-size:15px}
 .how .yt{font-size:14px;color:var(--muted)}
